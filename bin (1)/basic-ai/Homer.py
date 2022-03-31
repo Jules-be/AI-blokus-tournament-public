@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 import os
+import random
 import sys
 from blokus_classes.piece import *
+
 
 COMMAND = 0
 ARG = 1
@@ -11,7 +13,8 @@ player_nb = -1
 
 mandatory_pos = []
 
-pieces = []
+pieces_id = None
+pieces = None
 
 
 def start(size):
@@ -27,23 +30,51 @@ def start(size):
 
 
 def player(player_id):
-    global board, player_nb, pieces
+    global board, player_nb
 
     player_nb = int(player_id)
     if player_nb < 0 or player_nb > (1 if len(board) == 14 else 3):
         exit(84)
-    pieces = []
-    for i in range(1, 22):
-        pieces.append(Piece(i, player_nb))
     pass
 
 
 def play():
-    global board, player_nb, mandatory_pos, pieces
+    global board, player_nb, mandatory_pos, pieces_id, pieces
 
-    # Code your AI here
+    if not pieces_id:
+        pieces_id = []
+        send_msg("PIECES")
+        order = sys.stdin.readline().strip('\n')
+        print("CLIENT {}: RECEIVE: {}".format(os.getpid(), order), file=sys.stderr)
+        while order != "DONE":
+            pieces_id.append(int(order))
+            order = sys.stdin.readline().strip('\n')
+            print("CLIENT {}: RECEIVE: {}".format(os.getpid(), order), file=sys.stderr)
+        pieces = [Piece(pieces_id[i], player_nb) for i in range(len(pieces_id))]
 
-    return
+    for i in range(len(pieces) - 1, -1, -1):
+        piece = pieces[i]
+        for j in range(4):
+            for y in range(len(board)):
+                for x in range(len(board[y])):
+                    if piece.can_be_placed(copy.deepcopy(board), (x, y),
+                                           mandatory_pos[player_nb] if len(pieces) == 21 else None):
+                        send_msg("PLAY {0} {1} {2} {3}".format(piece.id, x, y, piece.rotation))
+                        piece.place(board, (x, y))
+                        order = sys.stdin.readline().strip('\n')
+                        if order != "DONE":
+                            exit(84)
+                        else:
+                            pieces_id.pop(i)
+                            pieces.pop(i)
+                            return
+            piece.rotate_right()
+    send_msg("SURRENDER")
+    order = sys.stdin.readline().strip('\n')
+    if order != "DONE":
+        exit(84)
+    else:
+        pass
 
 
 def played(player_id, piece_id, x, y, rotation):

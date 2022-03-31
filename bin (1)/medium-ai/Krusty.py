@@ -27,7 +27,7 @@ def start(size):
 
 
 def player(player_id):
-    global board, player_nb, pieces
+    global board, player_nb, pieces, first_moves_4
 
     player_nb = int(player_id)
     if player_nb < 0 or player_nb > (1 if len(board) == 14 else 3):
@@ -38,12 +38,72 @@ def player(player_id):
     pass
 
 
+def calculate_weight(array, piece_size):
+    global player_nb
+
+    player_corners = 0
+    opponent_corners = 0
+
+    for i in range(len(array)):
+        for j in range(len(array)):
+            if array[i][j] != 'O':
+                continue
+            for ply_id in range(0, (1 if len(array) == 14 else 3) + 1):
+                corner = diag_to((j, i), array, chr(ply_id + 48)) and not adj_to((j, i), array, chr(ply_id + 48))
+                if corner:
+                    if ply_id == player_nb:
+                        player_corners += 1
+                    else:
+                        opponent_corners += 1
+
+    weight = piece_size * 2 + (player_corners - opponent_corners * 3)
+    return weight
+
+
 def play():
     global board, player_nb, mandatory_pos, pieces
 
-    # Code your AI here
+    possible_positions = []
 
-    return
+    for i in range(len(pieces) - 1, -1, -1):
+        piece = pieces[i]
+        for j in range(4):
+            for y in range(len(board)):
+                for x in range(len(board[y])):
+                    board_copy = copy.deepcopy(board)
+                    if piece.can_be_placed(board_copy, (x, y),
+                                           mandatory_pos[player_nb] if len(pieces) == 21 else None):
+                        piece.place(board_copy, (x, y))
+                        possible_positions.append(
+                            (i, piece.id, (x, y), piece.rotation, calculate_weight(board_copy, piece.size)))
+            piece.rotate_right()
+
+    if len(possible_positions):
+        max_weight = max(pos[4] for pos in possible_positions)
+        possible_positions = list(filter(lambda elem: elem[4] == max_weight, possible_positions))
+
+        i = possible_positions[0][0]
+        piece = pieces[i]
+
+        send_msg("PLAY {0} {1} {2} {3}".format(possible_positions[0][1], possible_positions[0][2][0],
+                                               possible_positions[0][2][1], possible_positions[0][3]))
+        while piece.rotation != possible_positions[0][3]:
+            piece.rotate_right()
+        piece.place(board, possible_positions[0][2])
+
+        order = sys.stdin.readline().strip('\n')
+        if order != "DONE":
+            exit(84)
+        else:
+            pieces.pop(i)
+            return
+    else:
+        send_msg("SURRENDER")
+        order = sys.stdin.readline().strip('\n')
+        if order != "DONE":
+            exit(84)
+        else:
+            return
 
 
 def played(player_id, piece_id, x, y, rotation):
