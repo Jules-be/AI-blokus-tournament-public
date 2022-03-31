@@ -8,6 +8,10 @@ ARG = 1
 
 board = []
 player_nb = -1
+turn = 0
+startmoves = [[18, (-1, -1), 270], [20, (-1, -1), 0], [21, (-1, -1), 0], [15, (-1, -1), 180]]
+
+bestpiece= [21, 20, 18, 19, 16, 15, 14, 12, 17, 13, 11, 10, 9, 7, 6, 8, 5, 4, 3, 2, 1]
 
 mandatory_pos = []
 
@@ -27,7 +31,7 @@ def start(size):
 
 
 def player(player_id):
-    global board, player_nb, pieces, first_moves_4
+    global board, player_nb, pieces, startmoves
 
     player_nb = int(player_id)
     if player_nb < 0 or player_nb > (1 if len(board) == 14 else 3):
@@ -38,7 +42,7 @@ def player(player_id):
     pass
 
 
-def calculate_weight(array, piece_size):
+def prout(array, piece_size):
     global player_nb
 
     player_corners = 0
@@ -61,27 +65,42 @@ def calculate_weight(array, piece_size):
 
 
 def play():
-    global board, player_nb, mandatory_pos, pieces
+    global board, player_nb, mandatory_pos, pieces, turn, startmoves
+
+    possible_positions = []
+    p_i = None
+    if turn <= 3 and len(board) == 20:
+        for p in range(len(pieces)):
+            if pieces[p].id == startmoves[turn][0]:
+                p_i = p
+                while pieces[p].rotation != startmoves[turn][2]:
+                    pieces[p].rotate_right()
 
     possible_positions = []
 
-    for i in range(len(pieces) - 1, -1, -1):
-        piece = pieces[i]
-        for j in range(4):
-            for y in range(len(board)):
-                for x in range(len(board[y])):
-                    board_copy = copy.deepcopy(board)
-                    if piece.can_be_placed(board_copy, (x, y),
-                                           mandatory_pos[player_nb] if len(pieces) == 21 else None):
-                        piece.place(board_copy, (x, y))
-                        possible_positions.append(
-                            (i, piece.id, (x, y), piece.rotation, calculate_weight(board_copy, piece.size)))
-            piece.rotate_right()
+    if turn <= 3 and len(board) == 20 and p_i and pieces[p_i].can_be_placed(copy.deepcopy(board),
+                                                                            startmoves[turn][1],
+                                                                            mandatory_pos[player_nb] if len(
+                                                                                    pieces) == 21 else None):
+        possible_positions.append((p_i, pieces[p_i].id, startmoves[turn][1], startmoves[turn][2], 100000000))
+    else:
+        for i in range(len(pieces) - 1, -1, -1):
+            piece = pieces[i]
+            for j in range(4):
+                for y in range(len(board)):
+                    for x in range(len(board[y])):
+                        board_copy = copy.deepcopy(board)
+                        if piece.can_be_placed(board_copy, (x, y),
+                                               mandatory_pos[player_nb] if len(pieces) == 21 else None):
+                            piece.place(board_copy, (x, y))
+                            possible_positions.append(
+                                (i, piece.id, (x, y), piece.rotation, prout(board_copy, piece.size)))
+                piece.rotate_right()
 
     if len(possible_positions):
-        max_weight = max(pos[4] for pos in possible_positions)
-        possible_positions = list(filter(lambda elem: elem[4] == max_weight, possible_positions))
-
+        dicksize = max(pos[4] for pos in possible_positions)
+        possible_positions = list(filter(lambda elem: elem[4] == dicksize, possible_positions))
+        
         i = possible_positions[0][0]
         piece = pieces[i]
 
@@ -91,6 +110,7 @@ def play():
             piece.rotate_right()
         piece.place(board, possible_positions[0][2])
 
+        turn += 1
         order = sys.stdin.readline().strip('\n')
         if order != "DONE":
             exit(84)
