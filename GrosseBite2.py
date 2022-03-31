@@ -56,7 +56,7 @@ def prout(array, piece_size):
                 corner = diag_to((j, i), array, chr(ply_id + 48)) and not adj_to((j, i), array, chr(ply_id + 48))
                 if corner:
                     if ply_id == player_nb:
-                        player_corners += 2
+                        player_corners += 1
                     else:
                         opponent_corners += 2
 
