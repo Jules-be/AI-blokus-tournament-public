@@ -17,3 +17,6 @@ def checkPiece(x):
         return 84
     else:
         return 0
+
+def getFirstPos(board):
+    
